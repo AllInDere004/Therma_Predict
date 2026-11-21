@@ -1,4 +1,4 @@
-export async function predictFailure({ apiBaseUrl = "http://localhost:5000", payload }) {
+export async function predictFailure({ apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000", payload }) {
 
   if (!payload) throw new Error("payload is required");
 
