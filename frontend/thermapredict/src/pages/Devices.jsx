@@ -1,4 +1,4 @@
-import Sidebar from "../components/Sidebar";
+import PageShell from "../components/PageShell";
 import { getMachines } from "../machines_client";
 import { predictFailure } from "../predict_client";
 
@@ -93,7 +93,7 @@ function Devices() {
   if (!selectedMachine) {
 
     return (
-      <div className="flex items-center justify-center h-screen text-3xl font-bold">
+      <div className="flex items-center justify-center min-h-dvh px-4 text-center text-2xl font-bold">
         Loading Devices...
       </div>
     );
@@ -102,17 +102,14 @@ function Devices() {
 
   return (
 
-    <div className="flex h-screen overflow-hidden bg-[#f5f6fb]">
-
-      <Sidebar />
-
-      <div className="flex-1 px-10 py-8 pb-24 overflow-y-auto">
+    <PageShell>
+      <div className="min-w-0 px-4 py-5 sm:px-6 sm:py-8 2xl:px-10">
 
         {/* TOP BAR */}
 
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
 
-          <div className="flex gap-10 items-center">
+          <div className="flex flex-wrap gap-4 items-center">
 
             <button className="text-blue-600 font-semibold border-b-2 border-blue-600 pb-2 text-lg">
               My Devices
@@ -124,12 +121,12 @@ function Devices() {
 
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
 
             <input
               type="text"
               placeholder="Search devices..."
-              className="w-[340px] px-6 py-4 rounded-2xl border border-gray-200 bg-white outline-none"
+              className="w-full max-w-[340px] px-6 py-4 rounded-2xl border border-gray-200 bg-white outline-none"
             />
 
             <div className="text-3xl">
@@ -146,7 +143,7 @@ function Devices() {
         <div className="mb-10">
 
           <select
-            className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm min-w-[280px]"
+            className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm w-full max-w-sm"
             onChange={(e) => {
 
               const selected = machines.find(
@@ -180,9 +177,9 @@ function Devices() {
 
         {/* FILTERS */}
 
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
 
-          <div className="flex items-center gap-8 flex-wrap">
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
 
             <button className="px-6 py-3 bg-white border border-gray-200 rounded-xl">
               Filters
@@ -213,17 +210,17 @@ function Devices() {
 
         {/* DEVICE CARDS */}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4 sm:gap-6 mb-12">
 
           {machines.slice(0, 4).map((machine, index) => (
 
             <div
               key={index}
               onClick={() => setSelectedMachine(machine)}
-              className="bg-white rounded-3xl border border-gray-200 p-8 min-h-[320px] shadow-sm cursor-pointer hover:shadow-lg transition"
+              className="bg-white rounded-3xl border border-gray-200 p-4 sm:p-5 sm:min-h-[240px] shadow-sm cursor-pointer hover:shadow-lg transition"
             >
 
-              <div className="flex justify-between items-start mb-10">
+              <div className="flex flex-wrap justify-between items-start gap-3 mb-10">
 
                 <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl">
                   ⚙️
@@ -247,7 +244,7 @@ function Devices() {
                 Installation: {machine.Installation_Year}
               </p>
 
-              <div className="flex justify-between items-start mt-12 gap-8">
+              <div className="flex flex-wrap justify-between items-start gap-3 mt-12 gap-4 sm:gap-6">
 
                 <div>
 
@@ -255,7 +252,7 @@ function Devices() {
                     TEMP
                   </p>
 
-                  <h3 className="text-4xl font-bold mt-3">
+                  <h3 className="text-2xl sm:text-3xl font-bold mt-3">
 
                     {machine.Temperature_C}°
 
@@ -288,17 +285,17 @@ function Devices() {
 
         {/* BOTTOM SECTION */}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 sm:gap-6">
 
           {/* LEFT PANEL */}
 
-          <div className="xl:col-span-2 bg-[#f7f7fd] rounded-3xl border border-gray-200 p-10">
+          <div className="2xl:col-span-2 bg-[#f7f7fd] rounded-3xl border border-gray-200 p-4 sm:p-6">
 
-            <div className="flex items-start justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3">
 
               <div>
 
-                <h2 className="text-5xl font-bold text-[#111827] leading-tight">
+                <h2 className="text-3xl sm:text-4xl font-bold text-[#111827] leading-tight">
 
                   Device Insight Panel
 
@@ -314,22 +311,22 @@ function Devices() {
 
               </div>
 
-              <div className="text-7xl opacity-10">
+              <div className="text-4xl sm:text-6xl opacity-10">
                 🤖
               </div>
 
             </div>
 
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-12">
 
-              <div className="bg-white rounded-2xl p-8 min-h-[180px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[180px]">
 
                 <p className="text-gray-400 text-sm">
                   Internal Temp
                 </p>
 
-                <h3 className="text-5xl font-bold mt-5 text-[#0f766e]">
+                <h3 className="text-3xl sm:text-4xl font-bold mt-5 text-[#0f766e]">
 
                   {selectedMachine.Temperature_C}°
 
@@ -338,13 +335,13 @@ function Devices() {
               </div>
 
 
-              <div className="bg-white rounded-2xl p-8 min-h-[180px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[180px]">
 
                 <p className="text-gray-400 text-sm">
                   Power Usage
                 </p>
 
-                <h3 className="text-5xl font-bold mt-5">
+                <h3 className="text-3xl sm:text-4xl font-bold mt-5">
 
                   {selectedMachine.Power_Consumption_kW}kW
 
@@ -353,13 +350,13 @@ function Devices() {
               </div>
 
 
-              <div className="bg-white rounded-2xl p-8 min-h-[180px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[180px]">
 
                 <p className="text-gray-400 text-sm">
                   Health Score
                 </p>
 
-                <h3 className="text-5xl font-bold mt-5">
+                <h3 className="text-3xl sm:text-4xl font-bold mt-5">
 
                   {result
                     ? `${(100 - result.failure_probability).toFixed(1)}%`
@@ -383,15 +380,15 @@ function Devices() {
 
           {/* RIGHT PANEL */}
 
-          <div className="bg-[#f7f7fd] rounded-3xl border border-gray-200 p-10">
+          <div className="bg-[#f7f7fd] rounded-3xl border border-gray-200 p-4 sm:p-6">
 
-            <h2 className="text-4xl font-bold mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-10">
               AI Prediction
             </h2>
 
             <div className="space-y-8">
 
-              <div className="bg-white rounded-2xl p-8 min-h-[160px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[160px]">
 
                 <p className="text-gray-400 text-sm">
                   Machine Status
@@ -406,7 +403,7 @@ function Devices() {
               </div>
 
 
-              <div className="bg-white rounded-2xl p-8 min-h-[160px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[160px]">
 
                 <p className="text-gray-400 text-sm">
                   Failure Probability
@@ -423,7 +420,7 @@ function Devices() {
               </div>
 
 
-              <div className="bg-white rounded-2xl p-8 min-h-[160px]">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 min-h-[160px]">
 
                 <p className="text-gray-400 text-sm">
                   Alert Level
@@ -452,7 +449,7 @@ function Devices() {
 
       </div>
 
-    </div>
+    </PageShell>
 
   );
 }

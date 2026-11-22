@@ -1,4 +1,7 @@
+import { useEffect, useRef } from "react";
 import {
+  Menu,
+  X,
   LayoutDashboard,
   Cpu,
   AlertTriangle,
@@ -9,7 +12,7 @@ import {
 
 import { NavLink } from "react-router-dom";
 
-function Sidebar() {
+function SidebarContent({ onNavigate }) {
 
   const navItems = [
     {
@@ -36,7 +39,7 @@ function Sidebar() {
 
   return (
 
-    <div className="w-[340px] h-screen bg-gradient-to-b from-white to-[#f5f7ff] border-r border-gray-200 px-7 py-7 flex flex-col justify-between shadow-[4px_0_30px_rgba(15,23,42,0.05)] overflow-y-auto overflow-x-hidden">
+    <div className="h-full w-full min-h-0 flex-1 bg-gradient-to-b from-white to-[#f5f7ff] border-r border-gray-200 px-7 py-7 flex flex-col justify-between shadow-[4px_0_30px_rgba(15,23,42,0.05)] overflow-y-auto overflow-x-hidden">
 
       {/* TOP SECTION */}
 
@@ -46,7 +49,7 @@ function Sidebar() {
 
         <div className="px-2">
 
-          <h1 className="text-[40px] font-black text-[#111827] tracking-tight leading-none">
+          <h1 className="text-[clamp(1.5rem,8vw,2.125rem)] font-black text-[#111827] tracking-tight leading-none">
             ThermaPredict
           </h1>
 
@@ -59,7 +62,7 @@ function Sidebar() {
 
         {/* AI STATUS */}
 
-        <div className="mt-12 bg-[#eef2ff] border border-[#dbe4ff] rounded-[28px] p-5 shadow-sm">
+        <div className="bg-[#eef2ff] border border-[#dbe4ff] rounded-[28px] p-5 shadow-sm">
 
           <div className="flex items-center justify-between">
 
@@ -115,7 +118,7 @@ function Sidebar() {
 
         {/* NAVIGATION */}
 
-        <div className="mt-10 space-y-5 px-1">
+        <nav aria-label="Main navigation" className="space-y-3 px-1">
 
           {navItems.map((item, index) => {
 
@@ -126,12 +129,13 @@ function Sidebar() {
               <NavLink
                 key={index}
                 to={item.path}
+                onClick={onNavigate}
                 className={({ isActive }) =>
 
-                  `group flex items-center gap-5 px-5 py-5 rounded-[28px] transition-all duration-300
+                  `group flex items-center gap-5 px-4 py-3 rounded-[28px] transition-all duration-300
 
                   ${isActive
-                    ? "bg-blue-600 text-white shadow-[0_10px_30px_rgba(37,99,235,0.35)] scale-[1.02]"
+                    ? "bg-blue-600 text-white shadow-[0_10px_30px_rgba(37,99,235,0.35)]"
                     : "text-[#64748b] hover:bg-white hover:shadow-md hover:text-[#111827]"
                   }`
 
@@ -187,20 +191,20 @@ function Sidebar() {
 
           })}
 
-        </div>
+        </nav>
 
       </div>
 
 
       {/* PROFILE SECTION */}
 
-      <div className="mt-12 px-1 pb-2">
+      <div className="mt-8 px-1 pb-2">
 
-        <div className="bg-gradient-to-r from-[#2563eb] to-[#4f46e5] rounded-[36px] p-7 text-white shadow-[0_10px_30px_rgba(37,99,235,0.35)]">
+        <div className="bg-gradient-to-r from-[#2563eb] to-[#4f46e5] rounded-[36px] p-4 text-white shadow-[0_10px_30px_rgba(37,99,235,0.35)]">
 
           <div className="flex items-center gap-5">
 
-            <div className="w-20 h-20 rounded-[28px] bg-white/20 border border-white/20 backdrop-blur-lg flex items-center justify-center text-3xl font-bold">
+            <div className="w-12 h-12 shrink-0 rounded-2xl bg-white/20 border border-white/20 backdrop-blur-lg flex items-center justify-center text-3xl font-bold">
 
               A
 
@@ -252,4 +256,66 @@ function Sidebar() {
   );
 }
 
-export default Sidebar;
+export default function Sidebar() {
+  const drawer = useRef(null);
+  const menuButton = useRef(null);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 80rem)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) drawer.current?.close();
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  return (
+    <>
+      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-3 py-1 xl:hidden">
+        <button
+          ref={menuButton}
+          type="button"
+          aria-label="Open navigation"
+          aria-haspopup="dialog"
+          aria-controls="mobile-navigation"
+          className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#eef2ff] text-blue-700"
+          onClick={() => drawer.current.showModal()}
+        >
+          <Menu aria-hidden="true" size={22} />
+        </button>
+        <span className="font-bold">ThermaPredict</span>
+      </header>
+
+      <aside className="hidden min-h-0 w-72 shrink-0 xl:block">
+        <SidebarContent />
+      </aside>
+
+      <dialog
+        ref={drawer}
+        id="mobile-navigation"
+        aria-label="Main navigation"
+        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-80 max-w-[calc(100%-1rem)] overflow-hidden bg-white backdrop:bg-slate-900/50"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) drawer.current.close();
+        }}
+        onClose={() => {
+          if (menuButton.current?.getClientRects().length) menuButton.current.focus();
+        }}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex shrink-0 justify-end border-b border-gray-200 p-2">
+            <button
+              type="button"
+              aria-label="Close navigation"
+              className="grid size-11 place-items-center rounded-xl bg-[#eef2ff] text-blue-700"
+              onClick={() => drawer.current.close()}
+            >
+              <X aria-hidden="true" size={22} />
+            </button>
+          </div>
+          <SidebarContent onNavigate={() => drawer.current.close()} />
+        </div>
+      </dialog>
+    </>
+  );
+}

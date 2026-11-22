@@ -1,4 +1,4 @@
-import Sidebar from "../components/Sidebar";
+import PageShell from "../components/PageShell";
 import { predictFailure } from "../predict_client";
 import { getMachines } from "../machines_client";
 
@@ -181,7 +181,7 @@ function Dashboard() {
   if (!form) {
 
     return (
-      <div className="flex items-center justify-center h-screen text-3xl font-bold">
+      <div className="flex items-center justify-center min-h-dvh px-4 text-center text-2xl font-bold">
         Loading Dashboard...
       </div>
     );
@@ -191,26 +191,23 @@ function Dashboard() {
 
   return (
 
-    <div className="flex h-screen overflow-hidden bg-[#f5f6fb]">
-
-      <Sidebar />
-
-      <div className="flex-1 px-10 py-8 overflow-y-auto">
+    <PageShell>
+      <div className="min-w-0 px-4 py-5 sm:px-6 sm:py-8 2xl:px-10">
 
         {/* TOP BAR */}
 
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-4 mb-6">
 
-          <div className="flex items-center gap-10">
+          <div className="flex min-w-0 flex-wrap items-center gap-4">
 
-            <h1 className="text-5xl font-bold text-[#111827]">
+            <h1 className="text-3xl sm:text-5xl font-bold text-[#111827]">
               ThermaPredict
             </h1>
 
             <input
               type="text"
               placeholder="Search devices..."
-              className="w-[340px] px-6 py-4 rounded-2xl border border-[#dfe3f0] bg-[#f2f4fb] outline-none"
+              className="w-full max-w-[340px] px-6 py-4 rounded-2xl border border-[#dfe3f0] bg-[#f2f4fb] outline-none"
             />
 
           </div>
@@ -227,7 +224,7 @@ function Dashboard() {
         <div className="mb-8">
 
           <select
-            className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm"
+            className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm w-full max-w-sm"
             onChange={(e) => {
 
               const selected = machines.find(
@@ -261,17 +258,17 @@ function Dashboard() {
 
         {/* TOP CARDS */}
 
-        <div className="grid grid-cols-4 gap-8 mb-10">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-10">
 
           {/* FAILURE */}
 
-          <div className="bg-white rounded-[28px] border border-gray-200 p-10 min-h-[210px]">
+          <div className="bg-white rounded-[28px] border border-gray-200 p-4 sm:p-6 sm:min-h-[170px]">
 
             <p className="text-gray-400 tracking-widest text-sm">
               FAILURE PROBABILITY
             </p>
 
-            <h2 className="text-4xl font-bold mt-6 break-words">
+            <h2 className="text-2xl sm:text-4xl font-bold mt-6 break-words">
 
               {result
                 ? `${result.failure_probability}%`
@@ -288,7 +285,7 @@ function Dashboard() {
 
           {/* ALERTS */}
 
-          <div className="bg-white rounded-[28px] border border-gray-200 p-10 min-h-[210px]">
+          <div className="bg-white rounded-[28px] border border-gray-200 p-4 sm:p-6 sm:min-h-[170px]">
 
             <p className="text-gray-400 tracking-widest text-sm">
               ACTIVE ALERTS
@@ -309,13 +306,13 @@ function Dashboard() {
 
           {/* HEALTH */}
 
-          <div className="bg-white rounded-[28px] border border-gray-200 p-10 min-h-[210px]">
+          <div className="bg-white rounded-[28px] border border-gray-200 p-4 sm:p-6 sm:min-h-[170px]">
 
             <p className="text-gray-400 tracking-widest text-sm">
               HEALTH SCORE
             </p>
 
-            <h2 className="text-4xl font-bold mt-6 break-words">
+            <h2 className="text-2xl sm:text-4xl font-bold mt-6 break-words">
 
               {result
                 ? `${(100 - result.failure_probability).toFixed(1)}%`
@@ -341,7 +338,7 @@ function Dashboard() {
 
           {/* STATUS */}
 
-          <div className="bg-white rounded-[28px] border border-gray-200 p-10 min-h-[210px]">
+          <div className="bg-white rounded-[28px] border border-gray-200 p-4 sm:p-6 sm:min-h-[170px]">
 
             <p className="text-gray-400 tracking-widest text-sm">
               MACHINE STATUS
@@ -362,21 +359,21 @@ function Dashboard() {
 
         {result && (
 
-          <div className="bg-white rounded-3xl p-10 border border-gray-200 mb-10">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-gray-200 mb-10">
 
             <h2 className="text-3xl font-bold mb-8">
               Prediction Result
             </h2>
 
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-              <div className="bg-blue-50 p-8 rounded-2xl">
+              <div className="bg-blue-50 p-3 sm:p-5 rounded-2xl">
 
                 <p className="text-gray-500">
                   Failure Probability
                 </p>
 
-                <h3 className="text-4xl font-bold mt-4 text-blue-600">
+                <h3 className="text-2xl sm:text-4xl font-bold mt-4 text-blue-600">
 
                   {result.failure_probability}%
 
@@ -385,7 +382,7 @@ function Dashboard() {
               </div>
 
 
-              <div className="bg-yellow-50 p-8 rounded-2xl">
+              <div className="bg-yellow-50 p-3 sm:p-5 rounded-2xl">
 
                 <p className="text-gray-500">
                   Machine Status
@@ -400,13 +397,13 @@ function Dashboard() {
               </div>
 
 
-              <div className="bg-red-50 p-8 rounded-2xl">
+              <div className="bg-red-50 p-3 sm:p-5 rounded-2xl">
 
                 <p className="text-gray-500">
                   Alert Level
                 </p>
 
-                <h3 className="text-4xl font-bold mt-4 text-red-600">
+                <h3 className="text-2xl sm:text-4xl font-bold mt-4 text-red-600">
 
                   {result.alert}
 
@@ -423,13 +420,13 @@ function Dashboard() {
 
         {/* GRAPH SECTION */}
 
-        <div className="grid grid-cols-3 gap-8 mb-10">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 mb-10">
 
           {/* POWER */}
 
-          <div className="col-span-2 bg-white rounded-[28px] p-10 border border-gray-200">
+          <div className="min-w-0 xl:col-span-2 bg-white rounded-[28px] p-4 sm:p-6 border border-gray-200">
 
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
 
               <div>
 
@@ -437,7 +434,7 @@ function Dashboard() {
                   Weekly Analytics
                 </p>
 
-                <h2 className="text-4xl font-bold mt-2">
+                <h2 className="text-2xl sm:text-4xl font-bold mt-2">
                   Power Consumption
                 </h2>
 
@@ -453,7 +450,7 @@ function Dashboard() {
 
             </div>
 
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={260} minWidth={0}>
 
               <AreaChart data={powerData}>
 
@@ -483,7 +480,7 @@ function Dashboard() {
 
                 </defs>
 
-                <XAxis dataKey="day" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} minTickGap={12} />
 
                 <Tooltip />
 
@@ -504,9 +501,9 @@ function Dashboard() {
 
           {/* TEMPERATURE */}
 
-          <div className="bg-white rounded-[28px] p-10 border border-gray-200">
+          <div className="bg-white rounded-[28px] p-4 sm:p-6 border border-gray-200">
 
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
 
               <div>
 
@@ -520,7 +517,7 @@ function Dashboard() {
 
               </div>
 
-              <h3 className="text-4xl font-bold text-red-500">
+              <h3 className="text-2xl sm:text-4xl font-bold text-red-500">
 
                 {form?.Temperature_C}°
 
@@ -528,11 +525,11 @@ function Dashboard() {
 
             </div>
 
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={260} minWidth={0}>
 
               <LineChart data={data}>
 
-                <XAxis dataKey="time" />
+                <XAxis dataKey="time" tick={{ fontSize: 12 }} minTickGap={12} />
 
                 <Tooltip />
 
@@ -561,13 +558,13 @@ function Dashboard() {
 
         {/* SECOND ROW */}
 
-        <div className="grid grid-cols-2 gap-8 mb-10">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mb-10">
 
           {/* OPERATIONAL */}
 
-          <div className="bg-white rounded-[28px] p-10 border border-gray-200">
+          <div className="bg-white rounded-[28px] p-4 sm:p-6 border border-gray-200">
 
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
 
               <div>
 
@@ -581,7 +578,7 @@ function Dashboard() {
 
               </div>
 
-              <h3 className="text-4xl font-bold">
+              <h3 className="text-2xl sm:text-4xl font-bold">
 
                 {form?.Operational_Hours}
 
@@ -589,11 +586,11 @@ function Dashboard() {
 
             </div>
 
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={260} minWidth={0}>
 
               <BarChart data={usageData}>
 
-                <XAxis dataKey="day" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} minTickGap={12} />
 
                 <Tooltip />
 
@@ -612,7 +609,7 @@ function Dashboard() {
 
           {/* DETAILS */}
 
-          <div className="bg-white rounded-[28px] p-10 border border-gray-200">
+          <div className="bg-white rounded-[28px] p-4 sm:p-6 border border-gray-200">
 
             <p className="text-gray-400 uppercase tracking-widest text-sm mb-8">
               Machine Details
@@ -620,32 +617,32 @@ function Dashboard() {
 
             <div className="space-y-7">
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Machine Type</span>
                 <span>{form?.Machine_Type}</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Installation Year</span>
                 <span>{form?.Installation_Year}</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Vibration</span>
                 <span>{form?.Vibration_mms || form?.Vibration_mm_s}</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Sound</span>
                 <span>{form?.Sound_dB} dB</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Oil Level</span>
                 <span>{form?.Oil_Level_pct}%</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span>Coolant</span>
                 <span>{form?.Coolant_Level_pct}%</span>
               </div>
@@ -659,13 +656,13 @@ function Dashboard() {
 
         {/* ML CONFIDENCE */}
 
-        <div className="bg-blue-700 text-white rounded-[28px] p-10 mb-10">
+        <div className="bg-blue-700 text-white rounded-[28px] p-4 sm:p-6 mb-10">
 
           <p className="uppercase tracking-widest text-sm">
             ML Prediction Confidence
           </p>
 
-          <h2 className="text-6xl font-bold mt-8">
+          <h2 className="text-4xl sm:text-6xl font-bold mt-8">
 
             {result
               ? `${result.failure_probability}%`
@@ -690,7 +687,7 @@ function Dashboard() {
 
       </div>
 
-    </div>
+    </PageShell>
   );
 }
 

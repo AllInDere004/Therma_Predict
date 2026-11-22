@@ -1,4 +1,4 @@
-import Sidebar from "../components/Sidebar";
+import PageShell from "../components/PageShell";
 
 import { useState, useEffect } from "react";
 
@@ -28,8 +28,6 @@ function Errors() {
   const [result, setResult] = useState(null);
 
   const [machines, setMachines] = useState([]);
-
-  const [selectedMachine, setSelectedMachine] = useState(null);
 
   const [errorData, setErrorData] = useState(null);
 
@@ -63,8 +61,6 @@ function Errors() {
         setMachines(cleanedRows);
 
         if (cleanedRows.length > 0) {
-
-          setSelectedMachine(cleanedRows[0]);
 
           setErrorData(cleanedRows[0]);
 
@@ -122,7 +118,7 @@ function Errors() {
   if (loading && !result) {
 
     return (
-      <div className="flex items-center justify-center h-screen text-3xl font-bold">
+      <div className="flex items-center justify-center min-h-dvh px-4 text-center text-2xl font-bold">
         Loading Errors...
       </div>
     );
@@ -131,19 +127,16 @@ function Errors() {
 
   return (
 
-    <div className="flex h-screen bg-[#f5f6fb] overflow-hidden">
-
-      <Sidebar />
-
-      <div className="flex-1 overflow-y-auto px-12 py-10 pb-32">
+    <PageShell>
+      <div className="min-w-0 px-4 py-5 sm:px-6 sm:py-8 2xl:px-10">
 
         {/* TOP */}
 
-        <div className="flex flex-col xl:flex-row justify-between xl:items-start gap-10 mb-12">
+        <div className="flex flex-col xl:flex-row justify-between xl:items-start gap-4 sm:gap-6 mb-12">
 
           <div>
 
-            <h1 className="text-[52px] font-bold text-[#111827] leading-tight">
+            <h1 className="text-3xl sm:text-5xl font-bold text-[#111827] leading-tight">
 
               System Health & Error Impact
 
@@ -161,14 +154,12 @@ function Errors() {
           <div className="flex items-center gap-5 flex-wrap mt-4">
 
             <select
-              className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm min-w-[320px] h-[64px]"
+              className="bg-white border border-gray-200 rounded-2xl px-6 py-4 text-lg shadow-sm w-full max-w-sm min-h-12"
               onChange={(e) => {
 
                 const selected = machines.find(
                   (_, index) => index === Number(e.target.value)
                 );
-
-                setSelectedMachine(selected);
 
                 setErrorData(selected);
 
@@ -199,9 +190,9 @@ function Errors() {
 
         {/* FILTER */}
 
-        <div className="bg-white rounded-[32px] border border-gray-200 px-10 py-7 mb-12 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+        <div className="bg-white rounded-[32px] border border-gray-200 px-4 sm:px-6 py-7 mb-12 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
 
-          <div className="flex flex-wrap items-center gap-7">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
 
             <button className="bg-[#edf4ff] text-[#2563eb] px-8 py-4 rounded-2xl font-semibold">
               All
@@ -230,11 +221,11 @@ function Errors() {
 
           {/* HEADER */}
 
-          <div className="bg-white px-12 py-10 flex flex-col xl:flex-row justify-between xl:items-start gap-12 border-b border-gray-200">
+          <div className="bg-white px-4 sm:px-6 py-10 flex flex-col xl:flex-row justify-between xl:items-start gap-4 sm:gap-6 border-b border-gray-200">
 
-            <div className="flex items-center gap-8">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-6">
 
-              <div className="w-24 h-24 rounded-3xl bg-red-100 flex items-center justify-center text-5xl">
+              <div className="size-10 shrink-0 sm:size-16 rounded-3xl bg-red-100 flex items-center justify-center text-3xl sm:text-4xl">
                 ❗
               </div>
 
@@ -244,7 +235,7 @@ function Errors() {
                   {result?.status || "Loading"} Alert
                 </p>
 
-                <h2 className="text-[48px] font-bold mt-3 leading-tight">
+                <h2 className="min-w-0 wrap-anywhere text-xl sm:text-3xl font-bold mt-3 leading-tight">
                   ERR_DYNAMIC_AI_01
                 </h2>
 
@@ -257,7 +248,7 @@ function Errors() {
             </div>
 
 
-            <div className="flex flex-wrap items-start gap-16">
+            <div className="flex flex-wrap items-start gap-4 sm:gap-8">
 
               <div>
 
@@ -284,7 +275,7 @@ function Errors() {
 
                 <div className="flex items-center gap-5 mt-5">
 
-                  <div className="w-52 h-5 bg-red-100 rounded-full overflow-hidden">
+                  <div className="w-24 sm:w-40 h-5 bg-red-100 rounded-full overflow-hidden">
 
                     <div
                       className="h-full bg-red-600 rounded-full"
@@ -312,7 +303,7 @@ function Errors() {
 
           {/* CONTENT */}
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-10 p-10">
+          <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6">
 
             {/* SENSOR */}
 
@@ -322,9 +313,9 @@ function Errors() {
                 SENSOR TRIGGER
               </h3>
 
-              <div className="bg-white rounded-[32px] p-10 shadow-[0_2px_12px_rgba(15,23,42,0.04)] min-h-[360px]">
+              <div className="bg-white rounded-[32px] p-4 sm:p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)] min-h-[200px]">
 
-                <p className="text-red-500 text-7xl font-bold">
+                <p className="text-red-500 text-4xl sm:text-5xl font-bold">
                   {errorData?.Temperature_C}°C
                 </p>
 
@@ -376,7 +367,7 @@ function Errors() {
 
               <div className="space-y-7">
 
-                <div className="flex items-center gap-6 bg-white rounded-3xl p-8 min-h-[100px]">
+                <div className="flex items-center gap-6 bg-white rounded-3xl p-4 sm:p-5 min-h-[100px]">
 
                   <div className="w-6 h-6 rounded-full bg-orange-700"></div>
 
@@ -386,7 +377,7 @@ function Errors() {
 
                 </div>
 
-                <div className="flex items-center gap-6 bg-white rounded-3xl p-8 min-h-[100px]">
+                <div className="flex items-center gap-6 bg-white rounded-3xl p-4 sm:p-5 min-h-[100px]">
 
                   <div className="w-6 h-6 rounded-full bg-orange-400"></div>
 
@@ -396,7 +387,7 @@ function Errors() {
 
                 </div>
 
-                <div className="flex items-center gap-6 bg-white rounded-3xl p-8 min-h-[100px]">
+                <div className="flex items-center gap-6 bg-white rounded-3xl p-4 sm:p-5 min-h-[100px]">
 
                   <div className="w-6 h-6 rounded-full bg-red-600"></div>
 
@@ -421,7 +412,7 @@ function Errors() {
 
               <div className="space-y-7">
 
-                <div className="bg-white rounded-[32px] p-8 min-h-[140px]">
+                <div className="bg-white rounded-[32px] p-4 sm:p-5 min-h-[140px]">
 
                   <h4 className="font-semibold text-2xl">
                     Initiate Emergency Coolant
@@ -433,7 +424,7 @@ function Errors() {
 
                 </div>
 
-                <div className="bg-white rounded-[32px] p-8 min-h-[140px]">
+                <div className="bg-white rounded-[32px] p-4 sm:p-5 min-h-[140px]">
 
                   <h4 className="font-semibold text-2xl">
                     Dispatch On-site Tech
@@ -456,9 +447,9 @@ function Errors() {
 
         {/* GRAPH */}
 
-        <div className="bg-white rounded-[36px] border border-gray-200 p-12 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+        <div className="bg-white rounded-[36px] border border-gray-200 p-4 sm:p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
 
-          <h2 className="text-5xl font-bold">
+          <h2 className="text-3xl sm:text-4xl font-bold">
             Maintenance Foresight
           </h2>
 
@@ -466,13 +457,13 @@ function Errors() {
             Weekly predictive maintenance analytics
           </p>
 
-          <div className="h-[400px] mt-12 rounded-3xl bg-[#f8f9fd] p-10">
+          <div className="h-[260px] sm:h-[340px] mt-12 rounded-3xl bg-[#f8f9fd] p-4 sm:p-6">
 
             <ResponsiveContainer width="100%" height="100%">
 
               <BarChart data={data}>
 
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} minTickGap={12} />
 
                 <Tooltip />
 
@@ -492,7 +483,7 @@ function Errors() {
 
       </div>
 
-    </div>
+    </PageShell>
 
   );
 }
