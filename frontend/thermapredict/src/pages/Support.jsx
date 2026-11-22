@@ -1,140 +1,179 @@
+import { useEffect, useRef, useState } from "react";
+import ChatMarkdown from "../components/ChatMarkdown";
 import PageShell from "../components/PageShell";
-
-import { useState, useEffect } from "react";
-
-import { predictFailure } from "../predict_client";
+import { MAX_CHAT_HISTORY, MAX_CHAT_MESSAGE, sendChatMessage } from "../chat_client";
 import { getMachines } from "../machines_client";
+import { predictFailure } from "../predict_client";
+import { supabase } from "../supabase";
+
+const chatErrors = {
+  400: "Check your message and remove any passwords or tokens before trying again.",
+  401: "Your session expired or could not be verified. Sign in to continue.",
+  404: "This machine is unavailable. Select another machine or ask a general question.",
+  413: "This conversation is too large. Start a new conversation and try again.",
+  429: "ThermaBot is busy or has reached its request limit. Wait a minute and try again.",
+  502: "ThermaBot could not answer. Try rephrasing your question.",
+  503: "ThermaBot is temporarily unavailable. Try again later.",
+  504: "ThermaBot took too long to respond. Try again.",
+};
 
 function Support() {
-
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const [result, setResult] = useState(null);
-
+  const [search, setSearch] = useState("");
   const [machines, setMachines] = useState([]);
-
-  const [supportData, setSupportData] = useState(null);
+  const [machineError, setMachineError] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [conversations, setConversations] = useState([{ id: 0, machineId: null, messages: [] }]);
+  const [activeId, setActiveId] = useState(0);
+  const nextId = useRef(1);
+  const requestRef = useRef(null);
+  const transcript = useRef(null);
+  const latestReply = useRef(null);
+  const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState("");
+  const [error, setError] = useState(null);
+  const conversation = conversations.find(({ id }) => id === activeId);
+  const { machineId, messages } = conversation;
+  const selected = machines.find((machine) => machine.Machine_ID === machineId);
+  const result = analysis?.machineId === machineId ? analysis.result : null;
+  const analysisFailed = analysis?.machineId === machineId && analysis.failed;
 
   useEffect(() => {
-
-    async function loadMachines() {
-
-      try {
-
-        const rows = await getMachines();
-
-        const cleanedRows = rows.map((machine) => {
-
-          const cleanedMachine = {};
-
-          Object.keys(machine).forEach((key) => {
-
-            cleanedMachine[key] =
-              machine[key] === null ||
-              machine[key] === undefined ||
-              Number.isNaN(machine[key])
-                ? 0
-                : machine[key];
-
-          });
-
-          return cleanedMachine;
-
-        });
-
-        setMachines(cleanedRows);
-
-        if (cleanedRows.length > 0) {
-
-          setSupportData(cleanedRows[0]);
-
-        }
-
-      } catch (err) {
-
-        console.log(err);
-
-      }
-    }
-
-    loadMachines();
-
+    let active = true;
+    getMachines().then((rows) => {
+      if (active) setMachines(rows);
+    }).catch(() => {
+      if (active) setMachineError(true);
+    });
+    return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (!selected) return;
+    let active = true;
+    predictFailure({ payload: selected })
+      .then((prediction) => {
+        if (active) setAnalysis({ machineId: selected.Machine_ID, result: prediction });
+      })
+      .catch(() => {
+        if (active) setAnalysis({ machineId: selected.Machine_ID, failed: true });
+      });
+    return () => { active = false; };
+  }, [selected]);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   useEffect(() => {
+    const panel = transcript.current;
+    if (!panel?.clientHeight || !(messages.length || pending || error)) return;
 
-    if (!supportData) return;
-
-    async function fetchPrediction() {
-
-      try {
-
-        setLoading(true);
-
-        const response = await predictFailure({
-          payload: supportData,
-        });
-
-        setResult(response);
-
-      } catch (err) {
-
-        console.log(err);
-
-      } finally {
-
-        setLoading(false);
-
-      }
+    const reply = latestReply.current;
+    if (!pending && !error && reply && reply.offsetHeight > panel.clientHeight) {
+      const top = reply.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+      panel.scrollTop += top;
+    } else {
+      panel.scrollTop = panel.scrollHeight;
     }
+  }, [messages, pending, error, historyOpen]);
 
-    fetchPrediction();
-
-  }, [supportData]);
-
-
-  const statusColor =
-    result?.status === "Critical"
-      ? "text-red-600"
-      : result?.status === "Warning"
-      ? "text-yellow-500"
-      : "text-green-600";
-
-
-  const badgeColor =
-    result?.status === "Critical"
-      ? "bg-red-100 text-red-600"
-      : result?.status === "Warning"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-green-100 text-green-700";
-
-
-  const maintenanceAlert =
-    result?.failure_probability >= 70
-      ? "⚠ Immediate maintenance required"
-      : result?.failure_probability >= 40
-      ? "🛠 Schedule maintenance soon"
-      : "✅ Machine operating normally";
-
-
-  if (loading && !result) {
-
-    return (
-      <div className="flex items-center justify-center min-h-dvh px-4 text-center text-2xl font-bold">
-        Loading Support...
-      </div>
-    );
-
+  function openConversation(id) {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setActiveId(id);
+    setPending("");
+    setDraft("");
+    setError(null);
+    setHistoryOpen(false);
   }
 
+  function newConversation(contextId) {
+    const id = nextId.current++;
+    setConversations((current) => [
+      { id, machineId: contextId, messages: [] },
+      ...current,
+    ].slice(0, 20));
+    openConversation(id);
+  }
+
+  async function send(text) {
+    const message = text.trim();
+    if (!message || message.length > MAX_CHAT_MESSAGE || requestRef.current || error?.status === 401) return;
+
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setDraft("");
+    setPending(message);
+    setError(null);
+    try {
+      const { reply } = await sendChatMessage(message, messages.slice(-MAX_CHAT_HISTORY), machineId, controller.signal);
+      if (controller.signal.aborted || requestRef.current !== controller) return;
+
+      setConversations((current) => current.map((item) => item.id === activeId ? {
+        ...item,
+        messages: [
+          ...item.messages,
+          { role: "user", content: message },
+          { role: "assistant", content: reply },
+        ].slice(-40),
+      } : item));
+    } catch (failure) {
+      if (controller.signal.aborted || requestRef.current !== controller) return;
+      setDraft((current) => current || message);
+      setError({ status: failure.status, message: chatErrors[failure.status] || "Could not reach ThermaBot. Check your connection and try again." });
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setPending("");
+      }
+    }
+  }
+
+  async function returnToSignIn() {
+    try {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+      if (signOutError) throw signOutError;
+    } catch {
+      setError({ status: 401, message: "Could not end this session. Try signing out again." });
+    }
+  }
+
+  const currentLabel = selected ? selected.Machine_Type + " #" + selected.Machine_ID : "General maintenance";
+  const historyTitle = (item) => item.messages[0]?.content
+    || (item.machineId ? "Machine " + item.machineId : "General maintenance");
+  const matching = conversations.filter((item) =>
+    historyTitle(item).toLowerCase().includes(search.trim().toLowerCase())
+  );
+  const prompt = selected
+    ? "Explain this machine's readings and predicted risk."
+    : "What readings are useful for predictive maintenance?";
+  const readings = selected ? [
+    ["Temperature", selected.Temperature_C, " C"],
+    ["Vibration", selected.Vibration_mms ?? selected.Vibration_mm_s, " mm/s"],
+    ["Sound", selected.Sound_dB, " dB"],
+    ["Power", selected.Power_Consumption_kW, " kW"],
+  ] : [];
+
+  function renderMessage(role, content, key) {
+    const isAssistant = role === "assistant";
+    return (
+      <li
+        key={key}
+        ref={isAssistant && key === messages.length - 1 ? latestReply : undefined}
+        className={isAssistant
+          ? "w-full min-w-0 rounded-[24px] bg-[#eef2ff] p-4 text-slate-800 sm:p-6"
+          : "ml-auto w-fit min-w-0 max-w-[90%] rounded-[24px] bg-blue-600 px-4 py-3 text-white"}
+      >
+        <p className={isAssistant ? "mb-3 text-sm font-semibold text-blue-800" : "mb-1 text-sm font-semibold"}>{isAssistant ? "ThermaBot · AI-generated advice" : "You"}</p>
+        {isAssistant
+          ? <ChatMarkdown content={content} />
+          : <p className="whitespace-pre-wrap wrap-anywhere leading-relaxed">{content}</p>}
+      </li>
+    );
+  }
 
   return (
-
     <PageShell>
       <div className="flex min-h-72 min-w-0 flex-1 flex-col xl:flex-row">
-
         <button
           type="button"
           aria-expanded={historyOpen}
@@ -142,441 +181,167 @@ function Support() {
           className="min-h-11 shrink-0 self-start px-4 font-semibold text-blue-700 xl:hidden"
           onClick={() => setHistoryOpen(!historyOpen)}
         >
-          {historyOpen ? "Hide history" : "Show history"}
+          {historyOpen ? "Hide history and machine options" : "Show history and machine options"}
         </button>
-
-
-        {/* CONVERSATION PANEL */}
 
         <aside
           id="conversation-history"
           aria-label="Conversation history"
           className={`${historyOpen ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto bg-[#f7f7fd] p-4 xl:flex xl:w-64 xl:flex-none xl:border-r xl:border-gray-200 2xl:w-80`}
         >
-
-          <h2 className="text-2xl font-bold text-[#111827]">
-            Conversations
-          </h2>
-
+          <h2 className="text-2xl font-bold text-[#111827]">Conversation history</h2>
           <input
-            type="text"
+            aria-label="Search history"
             placeholder="Search history..."
-            className="mt-2 w-full min-h-[64px] rounded-2xl border border-gray-200 bg-white px-6 text-lg outline-none"
+            value={search}
+            maxLength={160}
+            onChange={(event) => setSearch(event.target.value)}
+            className="min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-4"
           />
-
-
-          {/* ACTIVE CARD */}
-
-          <div className="bg-white rounded-[36px] p-4 border border-gray-200 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-
-            <div className="flex justify-between items-center gap-4">
-
-              <span className={`text-sm font-bold ${statusColor}`}>
-                {result?.status || "ACTIVE"}
-              </span>
-
-              <span className="text-gray-400 text-sm">
-                Live ML
-              </span>
-
-            </div>
-
-            <h3 className="text-xl font-bold mt-5 leading-[1.2] break-words">
-              {supportData?.Machine_Type} Thermal Analysis
-            </h3>
-
-            <p className="text-gray-400 mt-5 leading-[1.8] text-lg">
-
-              ML detected
-              {" "}
-
-              {result
-                ? `${result.failure_probability}%`
-                : "--"}
-
-              {" "}
-              failure probability.
-
-            </p>
-
-          </div>
-
-
-          {/* ARCHIVE */}
-
-          <div className="space-y-4 pt-2">
-
-            <div className="bg-white rounded-[32px] p-4 border border-gray-200">
-
-              <div className="flex justify-between items-center">
-
-                <span className="text-gray-400 text-sm font-bold">
-                  ARCHIVED
-                </span>
-
-                <span className="text-gray-400 text-sm">
-                  Yesterday
-                </span>
-
-              </div>
-
-              <h3 className="text-base sm:text-lg mt-5 font-semibold leading-[1.4]">
-                Weekly Maintenance Report
-              </h3>
-
-            </div>
-
-            <div className="bg-white rounded-[32px] p-4 border border-gray-200">
-
-              <div className="flex justify-between items-center">
-
-                <span className="text-gray-400 text-sm font-bold">
-                  ARCHIVED
-                </span>
-
-                <span className="text-gray-400 text-sm">
-                  Mar 12
-                </span>
-
-              </div>
-
-              <h3 className="text-base sm:text-lg mt-5 font-semibold leading-[1.4]">
-                Industrial Oven Calibration
-              </h3>
-
-            </div>
-
-          </div>
-
-
-          {/* MACHINE SELECTOR */}
-
-          <div className="pt-2">
-
+          <label className="block text-sm font-semibold">
+            Machine context
             <select
-              className="w-full bg-white border border-gray-200 rounded-2xl px-6 py-5 text-lg shadow-sm min-h-[68px]"
-              onChange={(e) => {
-
-                const selected = machines.find(
-                  (_, index) => index === Number(e.target.value)
-                );
-
-                setSupportData(selected);
-
-              }}
+              value={machineId ?? ""}
+              onChange={(event) => newConversation(event.target.value || null)}
+              className="mt-2 min-h-12 w-full rounded-2xl border border-gray-200 bg-white px-3 py-2"
             >
-
-              {machines.map((machine, index) => (
-
-                <option
-                  key={index}
-                  value={index}
-                >
-
-                  {machine.Machine_Type}
-                  {" "}
-                  #{index + 1}
-
+              <option value="">General maintenance</option>
+              {machines.map((machine) => (
+                <option key={machine.Machine_ID} value={machine.Machine_ID}>
+                  {machine.Machine_Type} #{machine.Machine_ID}
                 </option>
-
               ))}
-
             </select>
-
-          </div>
-
-
-          <button className="mt-2 border-2 border-dashed border-gray-300 min-h-12 rounded-[36px] text-base sm:text-lg font-semibold hover:bg-gray-100 transition">
+          </label>
+          {machineError && <p role="status" className="text-sm">Machine list unavailable. You can still ask general questions.</p>}
+          <button
+            type="button"
+            onClick={() => newConversation(machineId)}
+            className="min-h-12 rounded-[36px] border-2 border-dashed border-gray-300 font-semibold transition hover:bg-gray-100"
+          >
             + New Conversation
           </button>
-
+          <ul className="space-y-3">
+            {matching.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  aria-current={activeId === item.id ? "true" : undefined}
+                  onClick={() => item.id === activeId ? setHistoryOpen(false) : openConversation(item.id)}
+                  className="w-full rounded-[28px] border border-gray-200 bg-white p-4 text-left font-semibold wrap-anywhere aria-current:border-blue-500"
+                >
+                  {historyTitle(item).slice(0, 80)}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!matching.length && <p className="text-sm text-gray-500">No matching conversations.</p>}
         </aside>
 
-
-        {/* CHAT AREA */}
-
         <section aria-label="ThermaBot" className={`${historyOpen ? "hidden" : "flex"} min-h-0 min-w-0 flex-1 flex-col bg-[#f7f7fd] xl:flex`}>
-
-
-          {/* TOP BAR */}
-
-          <div className="shrink-0 bg-white border-b border-gray-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2 sm:px-6">
-
-            <div className="flex items-center gap-6">
-
-              <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-3xl">
-                🤖
-              </div>
-
-              <div>
-
-                <h2 className="text-xl font-bold">
-                  ThermaBot
-                </h2>
-
-                <p className="text-green-600 text-sm font-semibold mt-1">
-                  ● AI SYSTEM ONLINE
-                </p>
-
-              </div>
-
+          <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-3 py-2 sm:px-6">
+            <div aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-600 text-2xl text-white">🤖</div>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold">ThermaBot</h2>
+              <p className="wrap-anywhere text-sm text-blue-700">{currentLabel}</p>
             </div>
+          </header>
 
-            <button className="bg-[#fff4eb] border border-[#f3d8bf] px-3 py-2 rounded-2xl text-sm font-semibold min-h-10">
-              🎧 Connect to Human
-            </button>
+          <div ref={transcript} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain wrap-anywhere px-3 py-5 sm:px-6">
+            {!messages.length && !pending && (
+              <div className="mb-6 flex flex-col items-center text-center">
+                <div aria-hidden="true" className="grid size-16 place-items-center rounded-[42px] bg-[#eef2ff] text-4xl sm:size-24">🤖</div>
+                <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-5xl">How can I help today?</h1>
+                <p className="mt-4 max-w-prose text-gray-600">Ask about predictive maintenance or select a machine to discuss its dataset readings and estimated risk.</p>
+                <button
+                  type="button"
+                  onClick={() => send(prompt)}
+                  disabled={error?.status === 401}
+                  className="mt-5 min-h-11 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm shadow-sm disabled:opacity-50 sm:text-base"
+                >
+                  {prompt}
+                </button>
+              </div>
+            )}
 
+            {selected && (
+              <div className="mx-auto mb-6 max-w-[1350px] rounded-[40px] border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+                <h3 className="text-xl font-bold">{selected.Machine_Type}</h3>
+                <p className="mt-2 text-sm font-semibold text-gray-600">Dataset sensor readings</p>
+                <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
+                  {readings.map(([label, value, unit]) => (
+                    <div key={label} className="rounded-[28px] bg-[#f8f9fd] p-4">
+                      <dt className="text-sm text-gray-600">{label}</dt>
+                      <dd className="mt-2 text-xl font-bold">{value == null ? "Unavailable" : value + unit}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-4 text-sm font-semibold">
+                  AdaBoost estimated risk: {result ? result.failure_probability + "% · " + result.status
+                    : analysisFailed ? "Unavailable" : "Calculating..."}
+                </p>
+                {result && (
+                  <div
+                    role="meter"
+                    aria-label="AdaBoost estimated failure probability"
+                    aria-valuenow={result.failure_probability}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="mt-2 h-3 overflow-hidden rounded-full bg-gray-100"
+                  >
+                    <div className="h-full rounded-full bg-blue-600" style={{ width: result.failure_probability + "%" }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <ul aria-label="Chat messages" className="mx-auto w-full min-w-0 max-w-[72ch] space-y-4 sm:space-y-5" aria-live="polite">
+              {messages.map(({ role, content }, index) => renderMessage(role, content, index))}
+              {pending && renderMessage("user", pending, "pending")}
+              {pending && <li role="status" className="rounded-[28px] bg-[#eef2ff] p-4">ThermaBot is responding...</li>}
+            </ul>
+            {error && (
+              <div role="alert" className="mx-auto mt-4 max-w-[1350px] rounded-2xl bg-[#fff4eb] p-4 text-sm">
+                {error.message}
+                {error.status === 401 && (
+                  <button type="button" onClick={returnToSignIn} className="ml-2 font-semibold text-blue-700 underline">
+                    Return to sign in
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-
-          {/* CENTER */}
-
-          <div className="min-h-0 flex-1 overflow-y-auto wrap-anywhere px-3 py-5 sm:px-6">
-
-            <div className="flex flex-col items-center">
-
-              <div className="size-16 sm:size-24 rounded-[42px] bg-[#eef2ff] flex items-center justify-center text-6xl">
-                🤖
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl font-bold mt-5 text-[#111827] text-center leading-[1.1]">
-                How can I help today?
-              </h1>
-
-              <p className="text-gray-400 text-center text-base sm:text-lg leading-[1.7] mt-8 max-w-[1050px]">
-
-                Real-time predictive AI support powered by
-                ThermaPredict ML monitoring engine.
-
-              </p>
-
-
-              {/* ACTION BUTTONS */}
-
-              <div className="flex flex-wrap justify-center gap-3 mt-5">
-
-                <button className="min-h-11 px-4 py-5 rounded-full bg-white border border-gray-200 text-sm sm:text-base shadow-sm flex items-center justify-center">
-                  ⚠ {result?.status || "Loading"} Alerts
-                </button>
-
-                <button className="min-h-11 px-4 py-5 rounded-full bg-white border border-gray-200 text-sm sm:text-base shadow-sm flex items-center justify-center">
-                  🌡 Temp: {supportData?.Temperature_C}°C
-                </button>
-
-                <button className="min-h-11 px-4 py-5 rounded-full bg-white border border-gray-200 text-sm sm:text-base shadow-sm flex items-center justify-center">
-                  📊 ML Risk:
-                  {" "}
-                  {result
-                    ? `${result.failure_probability}%`
-                    : "--"}
-                </button>
-
-              </div>
-
-            </div>
-
-
-            {/* MESSAGE */}
-
-            <div className="mt-8 max-w-[1350px] mx-auto space-y-8">
-
-              <div className="bg-[#eef2ff] rounded-[40px] p-4 sm:p-6">
-
-                <p className="text-base sm:text-lg leading-[1.9]">
-
-                  I've analyzed the recent thermal spikes in the
-
-                  <span className="text-blue-600 font-bold">
-                    {" "}
-                    {supportData?.Machine_Type}
-                  </span>.
-
-                  Current ML engine predicts
-
-                  <span className={`font-bold ${statusColor}`}>
-                    {" "}
-                    {result
-                      ? `${result.failure_probability}%`
-                      : "--"}
-                  </span>
-
-                  {" "}
-                  failure probability based on thermal,
-                  vibration and operational history.
-
-                </p>
-
-              </div>
-
-
-              {/* ALERT CARD */}
-
-              <div className="bg-white rounded-[40px] border border-gray-200 p-4 sm:p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-
-                <div className="flex flex-wrap justify-between items-center gap-3">
-
-                  <div>
-
-                    <p className="text-gray-400 text-sm uppercase tracking-wide">
-                      Maintenance Alert
-                    </p>
-
-                    <h2 className={`text-[36px] font-bold mt-5 leading-[1.3] ${statusColor}`}>
-
-                      {maintenanceAlert}
-
-                    </h2>
-
-                  </div>
-
-                  <div className="text-3xl">
-                    🚨
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              {/* ANALYTICS CARD */}
-
-              <div className="bg-white rounded-[40px] border border-gray-200 p-4 sm:p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-
-                <div className="flex flex-wrap justify-between items-center gap-6">
-
-                  <h2 className="text-2xl font-bold leading-[1.2] break-words">
-                    {supportData?.Machine_Type}
-                  </h2>
-
-                  <span className={`${badgeColor} px-6 py-3 rounded-xl font-bold text-lg`}>
-                    {result?.status || "Loading"}
-                  </span>
-
-                </div>
-
-
-                {/* SENSOR GRID */}
-
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3 mt-6">
-
-                  <div className="bg-[#f8f9fd] rounded-[32px] p-3 sm:p-4 min-h-24 flex flex-col justify-between">
-
-                    <p className="text-gray-400 text-sm">
-                      Temperature
-                    </p>
-
-                    <h3 className="text-xl sm:text-2xl font-bold mt-5 text-red-500 break-words">
-                      {supportData?.Temperature_C}°
-                    </h3>
-
-                  </div>
-
-                  <div className="bg-[#f8f9fd] rounded-[32px] p-3 sm:p-4 min-h-24 flex flex-col justify-between">
-
-                    <p className="text-gray-400 text-sm">
-                      Vibration
-                    </p>
-
-                    <h3 className="text-xl sm:text-2xl font-bold mt-5 break-words">
-                      {supportData?.Vibration_mms || supportData?.Vibration_mm_s || "0"}
-                    </h3>
-
-                  </div>
-
-                  <div className="bg-[#f8f9fd] rounded-[32px] p-3 sm:p-4 min-h-24 flex flex-col justify-between">
-
-                    <p className="text-gray-400 text-sm">
-                      Sound
-                    </p>
-
-                    <h3 className="text-xl sm:text-2xl font-bold mt-5 break-words">
-                      {supportData?.Sound_dB} dB
-                    </h3>
-
-                  </div>
-
-                  <div className="bg-[#f8f9fd] rounded-[32px] p-3 sm:p-4 min-h-24 flex flex-col justify-between">
-
-                    <p className="text-gray-400 text-sm">
-                      Power
-                    </p>
-
-                    <h3 className="text-xl sm:text-2xl font-bold mt-5 break-words">
-                      {supportData?.Power_Consumption_kW}kW
-                    </h3>
-
-                  </div>
-
-                </div>
-
-
-                {/* PROBABILITY */}
-
-                <div className="mt-6">
-
-                  <div className="flex justify-between items-center mb-5 gap-6 flex-wrap">
-
-                    <span className="text-gray-500 text-lg">
-                      Failure Probability
-                    </span>
-
-                    <span className={`font-bold text-xl ${statusColor}`}>
-
-                      {result
-                        ? `${result.failure_probability}%`
-                        : "--"}
-
-                    </span>
-
-                  </div>
-
-                  <div className="w-full h-5 bg-gray-100 rounded-full overflow-hidden">
-
-                    <div
-                      className="h-full bg-blue-600 rounded-full"
-                      style={{
-                        width: result
-                          ? `${result.failure_probability}%`
-                          : "0%"
-                      }}
-                    ></div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-          {/* INPUT */}
-
-          <div className="shrink-0 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6">
-
-            <div className="bg-white rounded-[40px] border border-gray-200 min-h-12 px-3 py-1.5 flex items-center gap-2 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-
+          <form
+            className="shrink-0 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6"
+            onSubmit={(event) => {
+              event.preventDefault();
+              send(draft);
+            }}
+          >
+            <div className="flex min-h-12 items-center gap-2 rounded-[40px] border border-gray-200 bg-white px-3 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-blue-400">
               <input
-                type="text"
-                placeholder="Message ThermaBot..."
                 aria-label="Message ThermaBot"
+                placeholder="Message ThermaBot..."
+                value={draft}
+                maxLength={MAX_CHAT_MESSAGE}
+                onChange={(event) => setDraft(event.target.value)}
                 className="min-w-0 flex-1 text-base outline-none"
               />
-
-              <button type="button" aria-label="Send message" className="size-11 shrink-0 rounded-2xl bg-blue-600 text-white text-3xl flex items-center justify-center">
-                ➤
+              <button
+                type="submit"
+                aria-label="Send message"
+                disabled={!draft.trim() || Boolean(pending) || error?.status === 401}
+                className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-600 text-xl text-white disabled:opacity-50"
+              >
+                <span aria-hidden="true">➤</span>
               </button>
-
             </div>
-
-          </div>
-
+            <p className="mt-1 text-xs text-gray-600">Advisory only. Follow site procedures and keep credentials out of chat.</p>
+          </form>
         </section>
       </div>
     </PageShell>
-
   );
 }
 

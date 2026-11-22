@@ -1,9 +1,5 @@
-export async function getMachines() {
+import { authenticatedRequest } from "./api_client";
 
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/machines`
-  );
-
-  return response.json();
-
+export function getMachines() {
+  return authenticatedRequest("/machines");
 }

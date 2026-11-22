@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../auth/useAuth";
+import { supabase } from "../supabase";
 import {
   Menu,
   X,
@@ -13,6 +15,24 @@ import {
 import { NavLink } from "react-router-dom";
 
 function SidebarContent({ onNavigate }) {
+  const { session } = useAuth();
+  const email = session?.user.email;
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    setSignOutError(false);
+    try {
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) throw error;
+      onNavigate?.();
+    } catch {
+      setSignOutError(true);
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   const navItems = [
     {
@@ -206,24 +226,34 @@ function SidebarContent({ onNavigate }) {
 
             <div className="w-12 h-12 shrink-0 rounded-2xl bg-white/20 border border-white/20 backdrop-blur-lg flex items-center justify-center text-3xl font-bold">
 
-              A
+              {email?.charAt(0).toUpperCase()}
 
             </div>
 
-            <div>
+            <div className="min-w-0">
 
-              <h2 className="text-[24px] font-bold leading-tight">
-                Alex Chen
+              <h2 className="wrap-anywhere text-sm font-bold leading-tight">
+                {email}
               </h2>
 
               <p className="text-blue-100 mt-1">
-                Systems Administrator
+                Signed in
               </p>
 
             </div>
 
           </div>
 
+
+          <button
+            type="button"
+            disabled={signingOut}
+            onClick={handleSignOut}
+            className="mt-4 min-h-11 w-full rounded-xl border border-white/40 px-3 font-semibold hover:bg-white/20 disabled:opacity-60"
+          >
+            {signingOut ? "Signing out..." : "Sign out"}
+          </button>
+          {signOutError && <p role="alert" className="mt-2 text-sm">Could not sign out. Try again.</p>}
 
           {/* FOOTER */}
 

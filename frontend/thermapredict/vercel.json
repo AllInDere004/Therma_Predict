@@ -4,6 +4,9 @@
     { "source": "/dashboard", "destination": "/index.html" },
     { "source": "/devices", "destination": "/index.html" },
     { "source": "/errors", "destination": "/index.html" },
-    { "source": "/support", "destination": "/index.html" }
+    { "source": "/support", "destination": "/index.html" },
+    { "source": "/forgot-password", "destination": "/index.html" },
+    { "source": "/reset-password", "destination": "/index.html" },
+    { "source": "/auth/callback", "destination": "/index.html" }
   ]
 }

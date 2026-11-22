@@ -41,10 +41,10 @@ ThermaPredict explores a predictive maintenance approach by analyzing machine op
 - Machine records retrieved through the backend API.
 
 ### 🧠 ThermaBot AI Assistant
-The demonstrated user interface includes ThermaBot, a conversational assistant intended to help users interpret machine-related information and maintenance insights.
+ThermaBot answers general maintenance questions and can explain selected machine readings and AdaBoost risk estimates. Conversations stay in the current browser tab and clear when you leave Support or reload.
 
 ### 🔐 Application Interface
-- Login and registration screens demonstrated in the application.
+- Supabase email/password sign-in, registration, and password recovery.
 - Dashboard and machine monitoring navigation.
 - Responsive, component-based frontend design.
 
@@ -55,6 +55,8 @@ The demonstrated user interface includes ThermaBot, a conversational assistant i
 | Frontend | React.js, Vite, Tailwind CSS |
 | UI and Visualization | Lucide React, Recharts |
 | Backend | Python, Flask, Flask-CORS |
+| Authentication | Supabase Auth, PyJWT |
+| Chat | Gemini Developer API, Google Gen AI Python SDK |
 | Machine Learning | Scikit-learn, AdaBoostClassifier |
 | Data Processing | Pandas, NumPy |
 | Model Serialization | Pickle |
@@ -173,42 +175,103 @@ git clone https://github.com/AllInDere004/Therma_Predict.git
 cd Therma_Predict
 ```
 
-### 2. Configure the Backend
+### 2. Configure Supabase Auth
+
+Use a Supabase development project for local testing. Enable the email provider and allow
+sign-ups if you want to test registration. Enable email confirmation to test the confirmation
+flow. In the Auth redirect allowlist, add the exact callback for the origin you will use,
+for example `http://localhost:5173/auth/callback` for Vite dev,
+`http://localhost:4173/auth/callback` for Vite preview, or
+`https://therma-predict-beta.vercel.app/auth/callback` for the production frontend. Use the same hostname and port
+throughout each flow and open email links in the browser that requested them. The app uses
+PKCE and the standard Supabase confirmation and recovery templates that follow the
+verification link and return an authorization code.
+
+The project must issue asymmetric Auth access tokens signed with ES256 or RS256. Its
+`/auth/v1/.well-known/jwks.json` endpoint must publish the matching key. A legacy HS256
+signing configuration will not work with this API. Flask checks the exact project issuer,
+the `authenticated` audience and role, and the token expiration.
+
+| Where | Environment variable | Value |
+|---|---|---|
+| `frontend/thermapredict/.env.local` | `VITE_SUPABASE_URL` | Supabase project base URL |
+| `frontend/thermapredict/.env.local` | `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
+| `frontend/thermapredict/.env.local` | `VITE_API_URL` | Flask base URL, such as `http://localhost:5000` for local testing |
+| Flask process | `SUPABASE_URL` | Same Supabase project base URL, without `/auth/v1` |
+
+`.env.local` is ignored by Git. Vite exposes `VITE_*` values in the browser bundle, so
+these settings must use public values. Flask needs only the project URL. Keep service-role
+keys, secret keys, signing secrets, and user access tokens out of frontend configuration,
+source control, and logs.
+
+### 3. Run the existing backend and frontend locally
+
+From the repository root in PowerShell, create the virtual environment if needed and run:
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe app.py
+python -m venv backend/.venv
+.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+# This override is optional when backend/.env already contains the development project URL.
+$env:SUPABASE_URL = Read-Host 'Supabase project base URL'
+.\backend\.venv\Scripts\python.exe -B backend/app.py
 ```
 
-By default, the Flask development server runs at:
+In another PowerShell terminal:
 
-`http://127.0.0.1:5000`
-
-### 3. Configure the Frontend
-
-Open another terminal from the project root:
-
-```bash
+```powershell
 cd frontend/thermapredict
+$env:VITE_API_URL = 'http://localhost:5000'
 npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite, typically:
+Open `http://localhost:5173`. In a signed-out window, open `/dashboard` directly and
+check that it redirects to sign-in. Register a test user, open the confirmation link,
+sign in, refresh a protected route, verify a machine prediction, and sign out from the
+sidebar. Then use **Forgot Password?**, open the reset email in the same browser, update
+the password, and verify that the new password works after signing out.
 
-`http://localhost:5173`
+Run the local JWT and prediction contract tests from the repository root:
 
-The frontend and backend must be configured to communicate using the appropriate local API address.
+```powershell
+.\backend\.venv\Scripts\python.exe -B -m unittest backend.test_chat backend.test_supabase_auth -v
+```
+
+The Vercel rewrites assume `frontend/thermapredict` is the frontend project root. A future
+deployment requires the same frontend variables at build time, `SUPABASE_URL` in the
+Flask runtime, and the exact deployed `/auth/callback` URL in the Supabase redirect
+allowlist.
+
+### 4. Verify ThermaBot locally
+
+The backend loads `backend/.env` relative to `backend/app.py`. Process environment
+variables take precedence. Set `GEMINI_API_KEY` there using a Gemini Developer API key
+and keep the file untracked. `GEMINI_MODEL` is optional and defaults to
+`gemini-3.5-flash-lite`. No new frontend variables are needed.
+
+With the local backend and frontend running, sign in to the development Supabase project
+and open Support. Ask a general question, select a machine in history and machine
+options, then ask about its readings and estimated risk. Switch machines while an answer
+is pending and verify that it does not appear in the new conversation. Try New Conversation
+and reopen the previous conversation using history.
+
+Chat sends the current message and up to four prior exchanges to Gemini. With a selected
+machine, Flask adds only allowlisted dataset readings and the AdaBoost estimate. Avoid
+entering credentials or sensitive data. ThermaBot provides advisory suggestions, and the
+dataset does not provide live telemetry.
+
+The API accepts up to 1,600 characters per user message and limits each Flask process to
+six requests per user and 60 total per rolling minute. These limits reset on process restart
+and apply separately to each worker. Gemini project quotas apply independently.
 
 ## 🔌 Backend API Endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/` | Backend status message |
-| GET | `/machines` | Retrieve machine records |
-| POST | `/predict` | Generate failure prediction |
+| GET | `/machines` | Retrieve machine records (Supabase Bearer access token required) |
+| POST | `/predict` | Generate failure prediction (Supabase Bearer access token required) |
+| POST | `/chat` | Send a message with optional machine context and history (Supabase Bearer access token required) |
 
 ### Example Prediction Response
 
@@ -263,7 +326,7 @@ These checks demonstrate local functionality and dependency verification. They d
 - Live industrial sensor integration.
 - Historical machine telemetry storage.
 - Improved predictive maintenance analytics.
-- Authentication and access-control hardening.
+- Fine-grained machine access control.
 - Cloud deployment and monitoring.
 - Model evaluation and performance benchmarking.
 - Advanced maintenance recommendations.

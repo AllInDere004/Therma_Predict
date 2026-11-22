@@ -1,10 +1,13 @@
 // Simple external tester for the Flask backend (no frontend changes)
 // Run:
-//   node backend/test_predict.jsquire
+//   node backend/test_predict.js (set SUPABASE_ACCESS_TOKEN to a test user access token)
 
 const API_BASE = "http://127.0.0.1:5000";
 
 async function main() {
+  const token = process.env.SUPABASE_ACCESS_TOKEN;
+  if (!token) throw new Error("Set SUPABASE_ACCESS_TOKEN to a test user access token.");
+
   const payload = {
     Machine_Type: "Pump", // <-- set to a value your machine_type_encoder.pkl supports
     Installation_Year: 2012,
@@ -25,12 +28,12 @@ async function main() {
 
   const res = await fetch(`${API_BASE}/predict`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify(payload),
   });
 
   const data = await res.json();
-  if (!res.ok) {
+  if (!res.ok || data.error) {
     console.error("Backend error:", data);
     process.exit(1);
   }
